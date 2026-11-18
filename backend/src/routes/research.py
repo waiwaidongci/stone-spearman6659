@@ -8,8 +8,9 @@ from src.schemas.study import StudyInput
 from src.schemas.observation import ObservationInput
 from src.schemas.run import RunInput
 from src.schemas.review import ReviewInput
+from src.schemas.match import MatchRunInput
 from src.controllers import research
-from src.services import runs,studies
+from src.services import runs,studies,matchruns
 from src.models.audit import Audit
 from src.models.observation import Observation
 from src.services.audits import log
@@ -45,5 +46,13 @@ def review(id:int,data:ReviewInput,db=Depends(get_db),user=Depends(admin)): retu
 @router.get('/runs/{id}/export')
 def export(id:int,db=Depends(get_db),user=Depends(current_user)):
     return Response(content=runs.export(db,id,user).encode('utf-8'),media_type='text/csv',headers={'Content-Disposition':f'attachment; filename="research-{id}.csv"'})
+@router.get('/match-runs')
+def list_match_runs(db=Depends(get_db),user=Depends(current_user)): return matchruns.list_runs(db)
+@router.post('/match-runs')
+def create_match_run(data:MatchRunInput,db=Depends(get_db),user=Depends(writer)): return research.create_match(db,data,user)
+@router.get('/match-runs/{id}')
+def get_match_run(id:int,db=Depends(get_db),user=Depends(current_user)): return matchruns.get(db,id)
+@router.get('/match-runs/{id}/pairs')
+def get_match_pairs(id:int,db=Depends(get_db),user=Depends(current_user)): return matchruns.pairs(db,id)
 @router.get('/audits')
 def audits(db=Depends(get_db),user=Depends(current_user)): return [record(x) for x in db.scalars(select(Audit).order_by(Audit.id.desc()).limit(100))]

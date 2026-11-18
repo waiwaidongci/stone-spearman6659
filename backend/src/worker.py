@@ -4,8 +4,10 @@ from redis import Redis
 from sqlalchemy import select
 from src.config.database import Session
 from src.models.run import Run
+from src.models.matchrun import MatchRun
 from src.models import user,study,observation,review,audit
 from src.services.algorithm import calculate
+from src.services import matchruns
 from src.utils.serializers import checksum
 redis=Redis.from_url(os.environ['REDIS_URL'])
 Path('/app/artifacts').mkdir(exist_ok=True)
@@ -13,12 +15,23 @@ Path('/app/artifacts').mkdir(exist_ok=True)
 with Session() as db:
     pending=list(db.scalars(select(Run).where(Run.status.in_(['queued','running']))))
     for run in pending: redis.rpush('analysis-queue',run.id)
+    pending=list(db.scalars(select(MatchRun).where(MatchRun.status.in_(['queued','running']))))
+    for run in pending: redis.rpush('match-queue',run.id)
 while True:
     Path('/tmp/worker-heartbeat').touch()
-    job=redis.blpop('analysis-queue',timeout=2)
+    job=redis.blpop(['analysis-queue','match-queue'],timeout=2)
     if not job: continue
-    id=int(job[1])
+    queue,id=job[0].decode(),int(job[1])
     with Session() as db:
+        if queue=='match-queue':
+            run=db.get(MatchRun,id)
+            if not run or run.status in ('completed','failed'): continue
+            run.status='running';db.commit()
+            try: matchruns.execute(db,run)
+            except Exception as e:
+                logging.exception('match failed');run.status='failed';run.error=str(e)
+            db.commit()
+            continue
         run=db.get(Run,id)
         if not run or run.status in ('completed','failed'): continue
         run.status='running';db.commit()

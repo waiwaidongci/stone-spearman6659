@@ -21,6 +21,11 @@
   "defaults": {
     "resamples": 4999
   },
+  "match_label": "孔隙率配对",
+  "match_note": "单件只配一次，孔隙率差须在容差内；配对数最多时取孔隙率总差最小，同分按规范序确定，不随读入顺序变化。",
+  "match_defaults": {
+    "tolerance": 2
+  },
   "names": [
     "澄石·细砂岩批次",
     "澄石·灰岩对照",
